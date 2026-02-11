@@ -32,19 +32,19 @@ D:\CRAgent\
 pip install -r requirements.txt
 ```
 
-### 2. 设置环境变量
+### 2. 初次使用前修改 config.py
 
-```bash
-# Windows (PowerShell)
-$env:AI_API_KEY = "sk-your-api-key"
-$env:AI_API_BASE_URL = "https://api.openai.com/v1"  # 可选，默认 OpenAI
-$env:AI_MODEL = "gpt-4o"                             # 可选，默认 gpt-4o
+在项目根目录打开 `config.py`，按需修改以下配置（**无需每次设置环境变量**）：
 
-# Linux / Mac
-export AI_API_KEY="sk-your-api-key"
-export AI_API_BASE_URL="https://api.openai.com/v1"
-export AI_MODEL="gpt-4o"
-```
+| 配置项 | 说明 |
+|--------|------|
+| `AI_API_KEY` | LLM API 密钥（必填） |
+| `AI_API_BASE_URL` | API 地址，如 `https://api.openai.com/v1`、`https://api.deepseek.com/v1` |
+| `AI_MODEL` | 模型名，如 `gpt-4o`、`deepseek-chat` |
+| `SOURCE_ENCODING` | 代码与 P4 输出编码，默认 `gbk`（中文环境）；UTF-8 代码改为 `utf-8` |
+| `REPORT_OUTPUT_DIR` | 报告输出目录，默认 `reports` |
+
+保存后即可长期使用；若需临时覆盖，仍可设置同名环境变量。
 
 ### 3. 运行
 
@@ -55,24 +55,28 @@ python p4_ai_reviewer.py local
 # 审查指定 CL
 python p4_ai_reviewer.py 12345
 
+# 审查多个 CL（空格或逗号分隔）
+python p4_ai_reviewer.py 12345 12346
+python p4_ai_reviewer.py 12345,12346
+
 # 自定义输出路径 + 详细日志
 python p4_ai_reviewer.py 12345 -o reports/my_review.md -v
 ```
 
-## 环境变量一览
+## 配置说明
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `AI_API_BASE_URL` | `https://api.openai.com/v1` | LLM API 基础地址 |
-| `AI_API_KEY` | *(必填)* | LLM API 密钥 |
-| `AI_MODEL` | `gpt-4o` | 模型名称 |
-| `AI_MAX_TOKENS` | `4096` | 最大生成 token 数 |
-| `AI_TEMPERATURE` | `0.2` | 生成温度（越低越确定性） |
-| `FILE_CONTENT_MAX_CHARS` | `60000` | 单文件全量内容截断阈值（字符） |
-| `REPORT_OUTPUT_DIR` | `reports` | 报告输出目录；不指定 `-o` 时在该目录下生成 `Review_Report_时间戳.md`，不覆盖旧报告 |
-| `REPORT_OUTPUT_PATH` | `Review_Report.md` | 仅在使用 `-o` 时的默认文件名参考 |
-| `P4_EXECUTABLE` | `p4` | Perforce 命令行工具路径 |
-| `SOURCE_ENCODING` | `utf-8` | 代码文件与 P4 输出编码。若代码为 GB2312/GBK（如 Windows 中文环境），设为 `gbk` 可避免 Diff 与报告中中文乱码。 |
+以上项均在 `config.py` 中修改即可；若设置了同名环境变量，会覆盖 config 中的值。
+
+| 配置项 | 说明 |
+|--------|------|
+| `AI_API_BASE_URL` | LLM API 基础地址 |
+| `AI_API_KEY` | LLM API 密钥（必填） |
+| `AI_MODEL` | 模型名称 |
+| `AI_MAX_TOKENS` / `AI_TEMPERATURE` | 生成长度与温度 |
+| `FILE_CONTENT_MAX_CHARS` | 单文件内容截断阈值（字符） |
+| `REPORT_OUTPUT_DIR` | 报告输出目录 |
+| `P4_EXECUTABLE` | Perforce 可执行路径 |
+| `SOURCE_ENCODING` | 代码与 P4 输出编码（默认 `gbk`） |
 
 ## 输出示例
 

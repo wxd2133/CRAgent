@@ -31,9 +31,6 @@ def generate_report(
     返回:
         生成的报告内容字符串
     """
-    # 构建 depot_path -> ReviewResult 映射
-    result_map: dict[str, ReviewResult] = {r.depot_path: r for r in review_results}
-
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines: list[str] = []
 
@@ -81,11 +78,11 @@ def generate_report(
         lines.append("> 没有需要审查的代码文件。")
         lines.append("")
     else:
-        for f in code_files:
-            result = result_map.get(f.depot_path)
+        for f, result in zip(code_files, review_results):
             filename = f.depot_path.rsplit("/", 1)[-1] if "/" in f.depot_path else f.depot_path
+            title = f"{filename} (CL {f.cl_number})" if f.cl_number else filename
 
-            lines.append(f"### {filename}")
+            lines.append(f"### {title}")
             lines.append(f"**路径**: `{f.depot_path}`  ")
             lines.append(f"**操作**: {f.action}")
             lines.append("")

@@ -11,7 +11,7 @@ P4_EXECUTABLE = os.environ.get("P4_EXECUTABLE", "p4")
 # 代码文件与 P4 输出编码。若代码为 GB2312/GBK（Windows 中文环境常见），
 # 设为 "gbk" 可避免 Diff 与文件内容中的中文乱码。
 # 环境变量: SOURCE_ENCODING=gbk 或 gb2312
-SOURCE_ENCODING = os.environ.get("SOURCE_ENCODING", "utf-8").strip().lower()
+SOURCE_ENCODING = os.environ.get("SOURCE_ENCODING", "gbk").strip().lower()
 if SOURCE_ENCODING not in ("utf-8", "gbk", "gb2312", "gb18030"):
     SOURCE_ENCODING = "utf-8"
 
@@ -74,6 +74,6 @@ SYSTEM_PROMPT = """\
 输出规则（务必遵守）：
 - 只输出**发现问题的维度**；某维度无问题则不要出现该维度标题或“无问题”等废话。
 - 每条建议：标注**行号**（基于 Diff）+ 严重程度 🔴/🟡/🔵，用中文简要说明，不赘述。
-- **若全部无问题**：只输出一行「✅ LGTM」，不要任何其他句子。
+- **若全部无问题**：只输出一行「✅ 无问题」，不要任何其他句子。
 - 整体精简，不要客套话、总结句、重复说明。
 """

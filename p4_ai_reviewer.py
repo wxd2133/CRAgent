@@ -102,60 +102,65 @@ def run_local_mode(output_path: str):
     print(f"{'=' * 60}")
 
 
-def run_cl_mode(cl_number: str, output_path: str):
+def run_cl_mode(cl_numbers: list[str], output_path: str):
     """
-    CL 模式：审查指定变更列表。
+    CL 模式：审查指定变更列表（支持多个 CL）。
     """
     logger = logging.getLogger("main")
+    cl_display = ", ".join(cl_numbers)
 
     logger.info("=" * 60)
-    logger.info("P4-AI-Reviewer — CL 模式 (CL: %s)", cl_number)
+    logger.info("P4-AI-Reviewer — CL 模式 (CL: %s)", cl_display)
     logger.info("=" * 60)
 
-    # 1. 获取 describe 输出
-    raw_describe = get_diff_cl(cl_number)
-    if not raw_describe.strip():
-        logger.warning("CL %s 的 describe 输出为空。", cl_number)
-        print(f"\n⚠️ CL {cl_number} 的 describe 输出为空，请确认 CL 编号正确。")
+    # 1. 逐个 CL 获取 describe 输出并解析
+    all_file_diffs: list[FileDiff] = []
+    for cl_num in cl_numbers:
+        raw_describe = get_diff_cl(cl_num)
+        if not raw_describe.strip():
+            logger.warning("CL %s 的 describe 输出为空，跳过。", cl_num)
+            continue
+        file_diffs = parse_cl_describe(raw_describe)
+        for fd in file_diffs:
+            fd.cl_number = cl_num
+            all_file_diffs.append(fd)
+
+    if not all_file_diffs:
+        logger.warning("未解析到任何文件变更。")
+        print(f"\n⚠️ CL {cl_display} 未解析到文件变更，请确认 CL 编号正确。")
         return
 
-    # 2. 解析
-    file_diffs = parse_cl_describe(raw_describe)
-    if not file_diffs:
-        logger.warning("Diff 解析结果为空。")
-        print(f"\n⚠️ CL {cl_number} 未解析到文件变更。")
-        return
-
+    file_diffs = all_file_diffs
     code_diffs = [f for f in file_diffs if f.is_code_file]
     logger.info("共 %d 个变更文件, %d 个代码文件需要审查",
                 len(file_diffs), len(code_diffs))
 
     if not code_diffs:
         logger.info("没有需要审查的代码文件。")
-        generate_report("cl", cl_number, file_diffs, [], output_path)
+        generate_report("cl", cl_display, file_diffs, [], output_path)
         print(f"\n📄 报告已生成: {output_path}")
         return
 
-    # 3. 获取全量文件内容
+    # 2. 获取全量文件内容
     file_data: list[tuple[str, str, str | None]] = []
     for fd in code_diffs:
         full_content = None
         if fd.action != "delete":
-            full_content = get_file_content_cl(fd.depot_path, cl_number)
+            full_content = get_file_content_cl(fd.depot_path, fd.cl_number)
         file_data.append((fd.depot_path, fd.diff_text, full_content))
 
-    # 4. 调用 AI 审查
+    # 3. 调用 AI 审查
     logger.info("开始 AI 审查 (%d 个文件) ...", len(file_data))
     results = review_files_batch(file_data)
 
-    # 5. 生成报告
-    report = generate_report("cl", cl_number, file_diffs, results, output_path)
+    # 4. 生成报告
+    generate_report("cl", cl_display, file_diffs, results, output_path)
 
     # 打印摘要
     success_count = sum(1 for r in results if not r.error)
     fail_count = sum(1 for r in results if r.error)
     print(f"\n{'=' * 60}")
-    print(f"  P4-AI-Reviewer 审查完成 (CL: {cl_number})")
+    print(f"  P4-AI-Reviewer 审查完成 (CL: {cl_display})")
     print(f"  审查文件: {len(code_diffs)} | 成功: {success_count} | 失败: {fail_count}")
     print(f"  报告路径: {os.path.abspath(output_path)}")
     print(f"{'=' * 60}")
@@ -174,11 +179,6 @@ def main():
         description="P4-AI-Reviewer: Perforce AI 代码审查助手",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
-示例:
-  python p4_ai_reviewer.py local              审查本地未提交修改
-  python p4_ai_reviewer.py 12345              审查 CL 12345
-  python p4_ai_reviewer.py local -o my.md     自定义输出路径
-  python p4_ai_reviewer.py 12345 -v           详细日志模式
 
 环境变量:
   AI_API_BASE_URL    LLM API 地址 (默认: https://api.openai.com/v1)
@@ -191,7 +191,8 @@ def main():
 
     parser.add_argument(
         "target",
-        help="审查目标: 'local' 表示本地未提交修改, 或指定 CL 编号 (如 12345)",
+        nargs="+",
+        help="审查目标: 'local' 表示本地未提交修改; 或一个或多个 CL 编号 (如 12345 12346 或 12345,12346)",
     )
     parser.add_argument(
         "-o", "--output",
@@ -230,16 +231,23 @@ def main():
         if parent:
             os.makedirs(parent, exist_ok=True)
 
-    target = args.target.strip()
-
-    if target.lower() == "local":
+    # 解析 target：支持 local 或 12345 12346 或 12345,12346
+    targets = args.target
+    if len(targets) == 1 and targets[0].strip().lower() == "local":
         run_local_mode(output_path)
-    elif target.isdigit():
-        run_cl_mode(target, output_path)
     else:
-        print(f"⚠️  无效的目标参数: '{target}'")
-        print("   请使用 'local' 或 CL 编号 (如 12345)。")
-        sys.exit(1)
+        cl_numbers: list[str] = []
+        for t in targets:
+            for part in t.replace(",", " ").split():
+                part = part.strip()
+                if part.isdigit():
+                    cl_numbers.append(part)
+        if cl_numbers:
+            run_cl_mode(cl_numbers, output_path)
+        else:
+            print(f"⚠️  无效的目标参数: {targets}")
+            print("   请使用 'local' 或 CL 编号 (如 12345 或 12345 12346 或 12345,12346)。")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

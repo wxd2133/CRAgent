@@ -20,6 +20,7 @@ class FileDiff:
     action: str              # add / edit / delete / 未知
     diff_text: str           # 原始 unified diff 文本片段
     is_code_file: bool       # 是否为需要审查的代码文件
+    cl_number: str = ""      # 所属 CL 编号（CL 模式下有值，用于多 CL 时区分同文件）
 
 
 def _is_code_file(filepath: str) -> bool:
