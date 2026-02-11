@@ -17,6 +17,9 @@ def generate_report(
     file_diffs: list[FileDiff],
     review_results: list[ReviewResult],
     output_path: str,
+    *,
+    reviewed_code_files: list[FileDiff] | None = None,
+    skipped_by_limit: list[FileDiff] | None = None,
 ) -> str:
     """
     生成 Markdown 格式的审查报告。
@@ -25,14 +28,18 @@ def generate_report(
         mode: "local" 或 "cl"
         cl_number: CL 编号（CL 模式下有值）
         file_diffs: 解析后的文件 diff 列表
-        review_results: AI 审查结果列表
+        review_results: AI 审查结果列表（与 reviewed_code_files 一一对应）
         output_path: 报告输出路径
-
-    返回:
-        生成的报告内容字符串
+        reviewed_code_files: 实际参与审查的代码文件列表；为 None 时取 file_diffs 中所有 is_code_file
+        skipped_by_limit: 因 MAX_FILES_PER_RUN 限制未审查的代码文件列表
     """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines: list[str] = []
+
+    code_files_all = [f for f in file_diffs if f.is_code_file]
+    code_files = reviewed_code_files if reviewed_code_files is not None else code_files_all
+    skipped_files = [f for f in file_diffs if not f.is_code_file]
+    skipped_by_limit = skipped_by_limit or []
 
     # ── 报告头 ─────────────────────────────────────
     lines.append("# P4-AI-Reviewer 代码审查报告")
@@ -43,16 +50,13 @@ def generate_report(
     else:
         lines.append(f"- **审查模式**: 变更列表 CL `{cl_number}`")
 
-    # 统计
-    total_files = len(file_diffs)
-    code_files = [f for f in file_diffs if f.is_code_file]
-    skipped_files = [f for f in file_diffs if not f.is_code_file]
     reviewed = [r for r in review_results if not r.error]
     failed = [r for r in review_results if r.error]
-
-    lines.append(f"- **变更文件总数**: {total_files}")
-    lines.append(f"- **代码文件数**: {len(code_files)}")
+    lines.append(f"- **变更文件总数**: {len(file_diffs)}")
+    lines.append(f"- **代码文件数**: {len(code_files_all)}")
     lines.append(f"- **跳过（非代码文件）**: {len(skipped_files)}")
+    if skipped_by_limit:
+        lines.append(f"- **因文件数限制未审查**: {len(skipped_by_limit)}")
     lines.append(f"- **审查成功**: {len(reviewed)}")
     if failed:
         lines.append(f"- **审查失败**: {len(failed)}")
@@ -60,11 +64,23 @@ def generate_report(
     lines.append("---")
     lines.append("")
 
-    # ── 跳过的文件 ──────────────────────────────────
+    # ── 跳过的文件（非代码）──────────────────────────
     if skipped_files:
         lines.append("## 跳过的文件（非代码文件）")
         lines.append("")
         for f in skipped_files:
+            lines.append(f"- `{f.depot_path}`")
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+
+    # ── 因限制未审查的代码文件 ───────────────────────
+    if skipped_by_limit:
+        lines.append("## 因文件数限制未审查")
+        lines.append("")
+        lines.append(f"以下 {len(skipped_by_limit)} 个代码文件因 `MAX_FILES_PER_RUN` 限制未参与本次审查：")
+        lines.append("")
+        for f in skipped_by_limit:
             lines.append(f"- `{f.depot_path}`")
         lines.append("")
         lines.append("---")

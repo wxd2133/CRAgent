@@ -74,7 +74,9 @@ python p4_ai_reviewer.py 12345 -o reports/my_review.md -v
 | `AI_MODEL` | 模型名称 |
 | `AI_MAX_TOKENS` / `AI_TEMPERATURE` | 生成长度与温度（温度建议 0～0.1，利于结果稳定） |
 | `AI_SEED` | 随机种子，设为正整数可提升多次运行一致性（留空不传，部分 API 支持） |
-| `FILE_CONTENT_MAX_CHARS` | 单文件内容截断阈值（字符） |
+| `FILE_CONTENT_MAX_CHARS` | 单文件全量内容截断阈值（字符） |
+| `REQUEST_MAX_CHARS` | 单次请求（diff+全量）总字符上限，超则截断或仅发 diff，避免超出模型上下文 |
+| `MAX_FILES_PER_RUN` | 单次运行最多审查的代码文件数，0=不限制；超过时只审查前 N 个，其余在报告中列出 |
 | `REPORT_OUTPUT_DIR` | 报告输出目录 |
 | `P4_EXECUTABLE` | Perforce 可执行路径 |
 | `SOURCE_ENCODING` | 代码与 P4 输出编码（默认 `gbk`） |

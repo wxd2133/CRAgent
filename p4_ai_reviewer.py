@@ -17,7 +17,7 @@ from datetime import datetime
 # 确保模块可以被找到
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import REPORT_OUTPUT_PATH, REPORT_OUTPUT_DIR
+from config import REPORT_OUTPUT_PATH, REPORT_OUTPUT_DIR, MAX_FILES_PER_RUN
 from p4_client import (
     get_diff_local,
     get_diff_cl,
@@ -64,19 +64,27 @@ def run_local_mode(output_path: str):
         return
 
     code_diffs = [f for f in file_diffs if f.is_code_file]
+    if MAX_FILES_PER_RUN > 0 and len(code_diffs) > MAX_FILES_PER_RUN:
+        code_diffs_to_review = code_diffs[:MAX_FILES_PER_RUN]
+        skipped_by_limit = code_diffs[MAX_FILES_PER_RUN:]
+        logger.info("共 %d 个代码文件，因 MAX_FILES_PER_RUN=%d 仅审查前 %d 个",
+                    len(code_diffs), MAX_FILES_PER_RUN, len(code_diffs_to_review))
+    else:
+        code_diffs_to_review = code_diffs
+        skipped_by_limit = []
+
     logger.info("共 %d 个变更文件, %d 个代码文件需要审查",
                 len(file_diffs), len(code_diffs))
 
     if not code_diffs:
         logger.info("没有需要审查的代码文件。")
-        # 仍然生成报告（记录跳过的文件）
         generate_report("local", None, file_diffs, [], output_path)
         print(f"\n📄 报告已生成: {output_path}")
         return
 
     # 3. 获取全量文件内容并组装数据
     file_data: list[tuple[str, str, str | None]] = []
-    for fd in code_diffs:
+    for fd in code_diffs_to_review:
         full_content = None
         # 优先使用 local_path，否则尝试 depot_path
         if fd.local_path:
@@ -90,14 +98,20 @@ def run_local_mode(output_path: str):
     results = review_files_batch(file_data)
 
     # 5. 生成报告
-    report = generate_report("local", None, file_diffs, results, output_path)
+    generate_report(
+        "local", None, file_diffs, results, output_path,
+        reviewed_code_files=code_diffs_to_review,
+        skipped_by_limit=skipped_by_limit if skipped_by_limit else None,
+    )
 
-    # 打印摘要
     success_count = sum(1 for r in results if not r.error)
     fail_count = sum(1 for r in results if r.error)
     print(f"\n{'=' * 60}")
     print(f"  P4-AI-Reviewer 审查完成")
-    print(f"  审查文件: {len(code_diffs)} | 成功: {success_count} | 失败: {fail_count}")
+    print(f"  审查文件: {len(code_diffs_to_review)} | 成功: {success_count} | 失败: {fail_count}", end="")
+    if skipped_by_limit:
+        print(f" | 因限制未审查: {len(skipped_by_limit)}", end="")
+    print()
     print(f"  报告路径: {os.path.abspath(output_path)}")
     print(f"{'=' * 60}")
 
@@ -132,6 +146,15 @@ def run_cl_mode(cl_numbers: list[str], output_path: str):
 
     file_diffs = all_file_diffs
     code_diffs = [f for f in file_diffs if f.is_code_file]
+    if MAX_FILES_PER_RUN > 0 and len(code_diffs) > MAX_FILES_PER_RUN:
+        code_diffs_to_review = code_diffs[:MAX_FILES_PER_RUN]
+        skipped_by_limit = code_diffs[MAX_FILES_PER_RUN:]
+        logger.info("共 %d 个代码文件，因 MAX_FILES_PER_RUN=%d 仅审查前 %d 个",
+                    len(code_diffs), MAX_FILES_PER_RUN, len(code_diffs_to_review))
+    else:
+        code_diffs_to_review = code_diffs
+        skipped_by_limit = []
+
     logger.info("共 %d 个变更文件, %d 个代码文件需要审查",
                 len(file_diffs), len(code_diffs))
 
@@ -143,7 +166,7 @@ def run_cl_mode(cl_numbers: list[str], output_path: str):
 
     # 2. 获取全量文件内容
     file_data: list[tuple[str, str, str | None]] = []
-    for fd in code_diffs:
+    for fd in code_diffs_to_review:
         full_content = None
         if fd.action != "delete":
             full_content = get_file_content_cl(fd.depot_path, fd.cl_number)
@@ -154,14 +177,20 @@ def run_cl_mode(cl_numbers: list[str], output_path: str):
     results = review_files_batch(file_data)
 
     # 4. 生成报告
-    generate_report("cl", cl_display, file_diffs, results, output_path)
+    generate_report(
+        "cl", cl_display, file_diffs, results, output_path,
+        reviewed_code_files=code_diffs_to_review,
+        skipped_by_limit=skipped_by_limit if skipped_by_limit else None,
+    )
 
-    # 打印摘要
     success_count = sum(1 for r in results if not r.error)
     fail_count = sum(1 for r in results if r.error)
     print(f"\n{'=' * 60}")
     print(f"  P4-AI-Reviewer 审查完成 (CL: {cl_display})")
-    print(f"  审查文件: {len(code_diffs)} | 成功: {success_count} | 失败: {fail_count}")
+    print(f"  审查文件: {len(code_diffs_to_review)} | 成功: {success_count} | 失败: {fail_count}", end="")
+    if skipped_by_limit:
+        print(f" | 因限制未审查: {len(skipped_by_limit)}", end="")
+    print()
     print(f"  报告路径: {os.path.abspath(output_path)}")
     print(f"{'=' * 60}")
 

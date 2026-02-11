@@ -16,6 +16,7 @@ from config import (
     AI_TEMPERATURE,
     AI_SEED,
     FILE_CONTENT_MAX_CHARS,
+    REQUEST_MAX_CHARS,
     SYSTEM_PROMPT,
 )
 
@@ -33,27 +34,41 @@ class ReviewResult:
 def _build_user_prompt(depot_path: str, diff_text: str, full_content: str | None) -> str:
     """
     构建单个文件的 User Prompt。
-    使用 XML 标签封装 Diff 和全量文件内容，提供"全量上下文"。
+    使用 XML 标签封装 Diff 和全量文件内容；总长超过 REQUEST_MAX_CHARS 时截断或仅发 diff。
     """
-    # 截断超大文件
     truncated_notice = ""
+    diff_len = len(diff_text or "")
+    # 1) 先按单文件上限截断全量内容
     if full_content and len(full_content) > FILE_CONTENT_MAX_CHARS:
         full_content = full_content[:FILE_CONTENT_MAX_CHARS]
         truncated_notice = "\n<!-- 注意: 文件内容过长，已截断至前 {0} 字符 -->".format(
             FILE_CONTENT_MAX_CHARS
         )
+    # 2) 单次请求总长限制：diff + full_content 不超过 REQUEST_MAX_CHARS
+    if full_content is not None and (diff_len + len(full_content)) > REQUEST_MAX_CHARS:
+        budget = REQUEST_MAX_CHARS - diff_len - 800
+        if budget > 2000:
+            full_content = full_content[:budget]
+            truncated_notice = "\n<!-- 注意: 为控制上下文长度，全量内容已截断至前 {0} 字符，请主要依据 Diff 审查 -->".format(
+                budget
+            )
+        else:
+            full_content = None
+            truncated_notice = ""
+            # 下面会写入“仅基于 Diff”的说明
+    # Diff 过长时仅截断 diff 尾部并提示（少见）
+    if diff_len > REQUEST_MAX_CHARS - 1000:
+        diff_text = (diff_text or "")[: REQUEST_MAX_CHARS - 1000]
+        diff_text += "\n\n... (Diff 过长，已截断，请基于以上部分审查)"
 
     parts = [
         f"请审查以下文件的代码变更。\n",
         f"**文件路径**: `{depot_path}`\n",
     ]
-
-    # Diff 部分
     parts.append("<diff>")
     parts.append(diff_text if diff_text else "(无差异内容)")
     parts.append("</diff>\n")
 
-    # 全量文件部分
     if full_content is not None:
         parts.append("<full_file_content>")
         parts.append(full_content)
@@ -61,10 +76,9 @@ def _build_user_prompt(depot_path: str, diff_text: str, full_content: str | None
             parts.append(truncated_notice)
         parts.append("</full_file_content>\n")
     else:
-        parts.append("<full_file_content>\n(无法获取全量文件内容，请仅基于 Diff 进行审查)\n</full_file_content>\n")
+        parts.append("<full_file_content>\n(未提供或已省略全量内容，请仅基于 Diff 进行审查)\n</full_file_content>\n")
 
     parts.append("请给出你的审查意见：")
-
     return "\n".join(parts)
 
 

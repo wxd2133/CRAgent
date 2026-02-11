@@ -49,14 +49,20 @@ IGNORE_EXTENSIONS = {
 AI_API_BASE_URL = os.environ.get("AI_API_BASE_URL", "https://api.openai.com/v1")
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "gpt-4o")
-AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "4096"))
+# 单条审查意见最大生成长度（tokens）。DeepSeek 最高 8192，过小可能导致长评语被截断
+AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "8192"))
 # 降低温度可提高多次运行结果一致性，建议 0～0.1
 AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.0"))
 # 随机种子（部分 API 支持，如 OpenAI）。设为正整数可提升多次运行一致性，留空则不传
 AI_SEED = os.environ.get("AI_SEED", "")
 
 # 单个文件全量内容截断阈值（字符数），超过此长度截断并提示模型
-FILE_CONTENT_MAX_CHARS = int(os.environ.get("FILE_CONTENT_MAX_CHARS", "60000"))
+# DeepSeek 128K 上下文下可用约 10 万字符/文件，其他模型酌情减小（如 60000）
+FILE_CONTENT_MAX_CHARS = int(os.environ.get("FILE_CONTENT_MAX_CHARS", "100000"))
+# 单次请求（diff + full_file_content）总字符上限。DeepSeek 128K tokens ≈ 约 24 万字符可用，预留后建议 20 万内；其他模型酌情减小
+REQUEST_MAX_CHARS = int(os.environ.get("REQUEST_MAX_CHARS", "200000"))
+# 单次运行最多审查的代码文件数，0 表示不限制。文件过多时可设为正整数（如 50），其余在报告中标注“未审查”
+MAX_FILES_PER_RUN = int(os.environ.get("MAX_FILES_PER_RUN", "0"))
 
 # ============================================================
 # 输出配置
