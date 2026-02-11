@@ -14,6 +14,7 @@ from config import (
     AI_MODEL,
     AI_MAX_TOKENS,
     AI_TEMPERATURE,
+    AI_SEED,
     FILE_CONTENT_MAX_CHARS,
     SYSTEM_PROMPT,
 )
@@ -89,6 +90,8 @@ def review_file(
         "max_tokens": AI_MAX_TOKENS,
         "temperature": AI_TEMPERATURE,
     }
+    if AI_SEED and str(AI_SEED).strip().isdigit():
+        payload["seed"] = int(AI_SEED)
 
     url = f"{AI_API_BASE_URL.rstrip('/')}/chat/completions"
 

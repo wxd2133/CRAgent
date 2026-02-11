@@ -72,7 +72,8 @@ python p4_ai_reviewer.py 12345 -o reports/my_review.md -v
 | `AI_API_BASE_URL` | LLM API 基础地址 |
 | `AI_API_KEY` | LLM API 密钥（必填） |
 | `AI_MODEL` | 模型名称 |
-| `AI_MAX_TOKENS` / `AI_TEMPERATURE` | 生成长度与温度 |
+| `AI_MAX_TOKENS` / `AI_TEMPERATURE` | 生成长度与温度（温度建议 0～0.1，利于结果稳定） |
+| `AI_SEED` | 随机种子，设为正整数可提升多次运行一致性（留空不传，部分 API 支持） |
 | `FILE_CONTENT_MAX_CHARS` | 单文件内容截断阈值（字符） |
 | `REPORT_OUTPUT_DIR` | 报告输出目录 |
 | `P4_EXECUTABLE` | Perforce 可执行路径 |
