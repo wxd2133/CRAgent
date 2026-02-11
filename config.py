@@ -52,7 +52,7 @@ AI_MODEL = os.environ.get("AI_MODEL", "gpt-4o")
 # 单条审查意见最大生成长度（tokens）。DeepSeek 最高 8192，过小可能导致长评语被截断
 AI_MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS", "8192"))
 # 降低温度可提高多次运行结果一致性，建议 0～0.1
-AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.0"))
+AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.1"))
 # 随机种子（部分 API 支持，如 OpenAI）。设为正整数可提升多次运行一致性，留空则不传
 AI_SEED = os.environ.get("AI_SEED", "")
 
@@ -60,7 +60,7 @@ AI_SEED = os.environ.get("AI_SEED", "")
 # DeepSeek 128K 上下文下可用约 10 万字符/文件，其他模型酌情减小（如 60000）
 FILE_CONTENT_MAX_CHARS = int(os.environ.get("FILE_CONTENT_MAX_CHARS", "100000"))
 # 单次请求（diff + full_file_content）总字符上限。DeepSeek 128K tokens ≈ 约 24 万字符可用，预留后建议 20 万内；其他模型酌情减小
-REQUEST_MAX_CHARS = int(os.environ.get("REQUEST_MAX_CHARS", "200000"))
+REQUEST_MAX_CHARS = int(os.environ.get("REQUEST_MAX_CHARS", "100000"))
 # 单次运行最多审查的代码文件数，0 表示不限制。文件过多时可设为正整数（如 50），其余在报告中标注“未审查”
 MAX_FILES_PER_RUN = int(os.environ.get("MAX_FILES_PER_RUN", "0"))
 
@@ -90,6 +90,7 @@ SYSTEM_PROMPT = """\
 - 每条建议：标注**行号**（基于 Diff）+ 严重程度 🔴/🟡/🔵，用中文简要说明，不赘述。同类问题用同一等级。
 - **若变更仅为以下之一且无逻辑/内存风险**：仅注释、仅时间戳/版本号、仅 UI 坐标/布局数值、仅空行或格式，则只输出一行「✅ 无问题」，不要追加任何建议。
 - **若存在任何逻辑/内存/线程/边界问题**：按上述等级列出，不要输出「✅ 无问题」。
-- **单文件上下文限制**：你只能看到当前文件。不要基于「在本文件中未看到声明/定义」做出「未声明、未定义、无此成员」类建议（成员或声明可能在头文件、基类、其他单元中）。仅对当前文件内**确实可见**的问题（如明显逻辑错误、当前文件内的空指针使用、资源释放）提出建议；对跨文件或依赖其他编译单元才能判断的事项一律不输出。
+- **单文件上下文限制**：你只能看到当前文件。不要基于「在本文件中未看到声明/定义」做出「未声明、未定义、无此成员」类建议（成员或声明可能在头文件、基类、其他单元中）。
+- **关注局部逻辑**：基于检查项重点审查当前 Diff 修改的代码，而不是全文件的编译检查。
 - 整体精简，不要客套话、总结句、重复说明。
 """
