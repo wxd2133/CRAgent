@@ -32,19 +32,23 @@ D:\CRAgent\
 pip install -r requirements.txt
 ```
 
-### 2. 初次使用前修改 config.py
+### 2. 初次使用前配置
 
-在项目根目录打开 `config.py`，按需修改以下配置（**无需每次设置环境变量**）：
+**API 相关（从 `.env` 读取，单独管理、不提交密钥）**  
+在项目根目录复制示例并填写：
 
-| 配置项 | 说明 |
+```bash
+cp .env.example .env
+# 编辑 .env，填写 AI_API_KEY 等（见下表）
+```
+
+| 变量名 | 说明 |
 |--------|------|
 | `AI_API_KEY` | LLM API 密钥（必填） |
-| `AI_API_BASE_URL` | API 地址，如 `https://api.openai.com/v1`、`https://api.deepseek.com/v1` |
-| `AI_MODEL` | 模型名，如 `gpt-4o`、`deepseek-chat` |
-| `SOURCE_ENCODING` | 代码与 P4 输出编码，默认 `gbk`（中文环境）；UTF-8 代码改为 `utf-8` |
-| `REPORT_OUTPUT_DIR` | 报告输出目录，默认 `reports` |
+| `AI_API_BASE_URL` | API 地址，如 `https://api.deepseek.com`、`https://api.openai.com/v1` |
+| `AI_MODEL` | 模型名，如 `deepseek-chat`、`gpt-4o` |
 
-保存后即可长期使用；若需临时覆盖，仍可设置同名环境变量。
+**其余配置**（如 `SOURCE_ENCODING`、`REPORT_OUTPUT_DIR`）在 `config.py` 中修改；若设置同名环境变量会覆盖 config 与 .env。
 
 ### 3. 运行
 
